@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.0
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityVS.ChatTest.CSharp", "UnityVS.ChatTest.CSharp.csproj", "{A7F85569-364A-CBF3-7561-D5A3C3A47921}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A7F85569-364A-CBF3-7561-D5A3C3A47921}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7F85569-364A-CBF3-7561-D5A3C3A47921}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7F85569-364A-CBF3-7561-D5A3C3A47921}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7F85569-364A-CBF3-7561-D5A3C3A47921}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
