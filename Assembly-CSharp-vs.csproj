@@ -46,12 +46,14 @@
 	</Reference>
   </ItemGroup>
   <ItemGroup>
-     <Compile Include="Assets\Src\AuthorizationController.cs" />
      <Compile Include="Assets\Src\Connection.cs" />
+     <Compile Include="Assets\Src\DataControllers\AuthorizationController.cs" />
+     <Compile Include="Assets\Src\DataControllers\UserDataController.cs" />
      <Compile Include="Assets\Src\Ids.cs" />
      <Compile Include="Assets\Src\UiControllers\MenuController.cs" />
      <Compile Include="Assets\Src\UiControllers\UserScreenController.cs" />
      <Compile Include="Assets\Src\UserManager.cs" />
+     <Compile Include="Assets\Src\Utils\Utils.cs" />
      <None Include="Assets\Standard Assets (Mobile)\Shaders\Particle Shaders\Mobile Multiply Culled.shader" />
      <None Include="Assets\Standard Assets (Mobile)\Shaders\Miscellaneous Shaders\Mobile Background.shader" />
      <None Include="Assets\Standard Assets (Mobile)\Shaders\Vertex Colored Shaders\Mobile Transparent Vertex Color.shader" />
@@ -64,11 +66,11 @@
  <Reference Include="UnityEngine.UI">
  <HintPath>C:/Unity/Editor/Data/UnityExtensions/Unity/GUISystem/4.6.2/UnityEngine.UI.dll</HintPath>
  </Reference>
- <Reference Include="MiscUtil-DotNet2-r285">
- <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/MiscUtil-DotNet2-r285.dll</HintPath>
- </Reference>
  <Reference Include="JsonFx">
  <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/JsonFx.dll</HintPath>
+ </Reference>
+ <Reference Include="MiscUtil-DotNet2-r285">
+ <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/MiscUtil-DotNet2-r285.dll</HintPath>
  </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -32,7 +32,7 @@ class AuthorizationController
         message.Service = Ids.Services.CLIENTS;
         message.Action = Ids.Actions.Clients.REGISTER_NEW;
         message.Session = null;
-        string json = string.Format(Ids.Authorizations.REGISTER_JSON, Ids.Authorizations.BY_LOGIN_AND_PASSWORD, login, password);
+        string json = string.Format(Ids.Actions.Authorizations.REGISTER_JSON, Ids.Actions.Authorizations.BY_LOGIN_AND_PASSWORD, login, password);
         byte[] data = Encoding.UTF8.GetBytes(json);
 
         MemoryStream stream = new MemoryStream(4 + data.Length);
@@ -94,7 +94,7 @@ class AuthorizationController
         message.Service = Ids.Services.CLIENTS;
         message.Action = Ids.Actions.Clients.LOGIN;
         message.Session = null;
-        string json = string.Format(Ids.Authorizations.LOGIN_JSON, Ids.Authorizations.BY_LOGIN_AND_PASSWORD, login, password);
+        string json = string.Format(Ids.Actions.Authorizations.LOGIN_JSON, Ids.Actions.Authorizations.BY_LOGIN_AND_PASSWORD, login, password);
         byte[] data = Encoding.UTF8.GetBytes(json);
 
         MemoryStream stream = new MemoryStream(4 + data.Length);
@@ -116,99 +116,39 @@ class AuthorizationController
                 MemoryStream answareStream = new MemoryStream(msg.Data);
                 EndianBinaryReader answareReader = new EndianBinaryReader(BigEndianBitConverter.Big, answareStream);
                 int result = answareReader.ReadInt32();
-                answareReader.Close();
-                answareStream.Close();
-
+                
                 switch (result)
                 {
                     case Ids.UserManagerResults.INVALID_DATA:
                     case Ids.UserManagerResults.LOGIN_OR_PASSWORD_INVALID:
+                        answareReader.Close();
+                        answareStream.Close();
                         onComplete(false, result, 0, null);
                         break;
                     case Ids.UserManagerResults.SUCCESS:
                         {
                             int clientId = answareReader.ReadInt32();
                             string session = msg.Session;
+                            answareReader.Close();
+                            answareStream.Close();
                             onComplete(true, 0, clientId, session);
                         }
                         break;
                     case Ids.UserManagerResults.REGISTER_UNKNOWN_TYPE:
                     case Ids.UserManagerResults.INTERNAL_ERROR:
+                        answareReader.Close();
+                        answareStream.Close();
                         onComplete(false, result, 0, null);
                         break;
                     default:
+                        answareReader.Close();
+                        answareStream.Close();
                         onComplete(false, Ids.UserManagerResults.INTERNAL_ERROR, 0, null);
                         break;
                 }
             }
             return true;
         };
-        connection.registerDataListener(Ids.Services.CLIENTS, Ids.Actions.Clients.REGISTER_NEW, loginDelegate);
-    }
-
-    public delegate void UserInfoResultDelegate(int result, Dictionary<string, object> data);
-
-    public void requestUserInfp(int clientId, UserInfoResultDelegate onComplete)
-    {
-        if (!connection.isConnected())
-        {
-            networkErrorHandler();
-            return;
-        }
-
-        DataMessage message = new DataMessage();
-        message.Service = Ids.Services.CLIENTS;
-        message.Action = Ids.Actions.Clients.LOGIN;
-        message.Session = null;
-        string json = string.Format(Ids.Authorizations.LOGIN_JSON, Ids.Authorizations.BY_LOGIN_AND_PASSWORD, login, password);
-        byte[] data = Encoding.UTF8.GetBytes(json);
-
-        MemoryStream stream = new MemoryStream(4 + data.Length);
-        EndianBinaryWriter writer = new EndianBinaryWriter(BigEndianBitConverter.Big, stream);
-        writer.Write(data.Length);
-        writer.Write(data);
-        writer.Flush();
-        message.Data = stream.GetBuffer();
-        message.DataOffset = 0;
-        message.DataLength = (int)stream.Position;
-        writer.Close();
-        stream.Close();
-        connection.addMessageToSend(message);
-        Connection.DataHandledDelegate loginDelegate = null;
-        loginDelegate = delegate(DataMessage msg)
-        {
-            if (msg.Data != null)
-            {
-                MemoryStream answareStream = new MemoryStream(msg.Data);
-                EndianBinaryReader answareReader = new EndianBinaryReader(BigEndianBitConverter.Big, answareStream);
-                int result = answareReader.ReadInt32();
-                answareReader.Close();
-                answareStream.Close();
-
-                switch (result)
-                {
-                    case Ids.UserManagerResults.INVALID_DATA:
-                    case Ids.UserManagerResults.LOGIN_OR_PASSWORD_INVALID:
-                        onComplete(false, result, 0, null);
-                        break;
-                    case Ids.UserManagerResults.SUCCESS:
-                        {
-                            int clientId = answareReader.ReadInt32();
-                            string session = msg.Session;
-                            onComplete(true, 0, clientId, session);
-                        }
-                        break;
-                    case Ids.UserManagerResults.REGISTER_UNKNOWN_TYPE:
-                    case Ids.UserManagerResults.INTERNAL_ERROR:
-                        onComplete(false, result, 0, null);
-                        break;
-                    default:
-                        onComplete(false, Ids.UserManagerResults.INTERNAL_ERROR, 0, null);
-                        break;
-                }
-            }
-            return true;
-        };
-        connection.registerDataListener(Ids.Services.CLIENTS, Ids.Actions.Clients.REGISTER_NEW, loginDelegate);
+        connection.registerDataListener(Ids.Services.CLIENTS, Ids.Actions.Clients.LOGIN, loginDelegate);
     }
 }

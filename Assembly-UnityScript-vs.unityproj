@@ -70,11 +70,11 @@
  <Reference Include="UnityEngine.UI">
  <HintPath>C:/Unity/Editor/Data/UnityExtensions/Unity/GUISystem/4.6.2/UnityEngine.UI.dll</HintPath>
  </Reference>
- <Reference Include="MiscUtil-DotNet2-r285">
- <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/MiscUtil-DotNet2-r285.dll</HintPath>
- </Reference>
  <Reference Include="JsonFx">
  <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/JsonFx.dll</HintPath>
+ </Reference>
+ <Reference Include="MiscUtil-DotNet2-r285">
+ <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/MiscUtil-DotNet2-r285.dll</HintPath>
  </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

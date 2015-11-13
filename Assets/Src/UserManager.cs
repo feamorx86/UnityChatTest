@@ -20,4 +20,14 @@ public class UserManager : MonoBehaviour {
 	void Update () {
 	
 	}
+
+    public int getClientId()
+    {
+        return clientId;
+    }
+
+    public string getSession()
+    {
+        return session;
+    }
 }
