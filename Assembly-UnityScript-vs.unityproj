@@ -5,7 +5,7 @@
 	<Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
 	<ProductVersion>10.0.20506</ProductVersion>
 	<SchemaVersion>2.0</SchemaVersion>
-	<ProjectGuid>{6124D89D-6A38-CC65-ACBB-A779DADC909A}</ProjectGuid>
+	<ProjectGuid>{B1EE9DF8-A61D-43F4-71EC-1CB3410261CD}</ProjectGuid>
 	<OutputType>Library</OutputType>
 	<AppDesignerFolder>Properties</AppDesignerFolder>
 	<RootNamespace></RootNamespace>
@@ -71,10 +71,10 @@
  <HintPath>C:/Unity/Editor/Data/UnityExtensions/Unity/GUISystem/4.6.2/UnityEngine.UI.dll</HintPath>
  </Reference>
  <Reference Include="JsonFx">
- <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/JsonFx.dll</HintPath>
+ <HintPath>E:/Projects/GitHub/UnityChatTest/Assets/Plugins/JsonFx.dll</HintPath>
  </Reference>
  <Reference Include="MiscUtil-DotNet2-r285">
- <HintPath>E:/Projects/Unity/ChatTest/Assets/Plugins/MiscUtil-DotNet2-r285.dll</HintPath>
+ <HintPath>E:/Projects/GitHub/UnityChatTest/Assets/Plugins/MiscUtil-DotNet2-r285.dll</HintPath>
  </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

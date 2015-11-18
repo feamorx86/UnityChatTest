@@ -21,6 +21,7 @@ class UserInfoController
     }
 
     public delegate void UserInfoResultDelegate(int result, Dictionary<string, System.Object> fullUserInfo);
+    public delegate void RequestGameDelegate(int result);
 
     public Dictionary<String, Object> getUserInfo(Dictionary<String, Object> json)
     {
@@ -74,7 +75,8 @@ class UserInfoController
     public List<UserInventoryItem> getInventoryItems(Dictionary<String, Object> userInventory)
     {
         List<UserInventoryItem> result = new List<UserInventoryItem>();
-        List<Dictionary<String, Object>> items = extractField<List<Dictionary<String, Object>>>("items", userInventory, null);
+        object itemsObject = extractField<Object[]>("items", userInventory, null);
+        Object[] items = (Object[])itemsObject;
         if (items != null)
         {
             foreach (Dictionary<String, Object> json in items)
@@ -124,8 +126,7 @@ class UserInfoController
         message.Service = Ids.Services.GAME_RESLOVER;
         message.Action = Ids.Actions.GameResolver.GET_FULL_USER_INFO;
         message.Session = userManager.getSession();
-        connection.addMessageToSend(message);
-
+        
         Connection.DataHandledDelegate getUserInfoDelegate = null;
         getUserInfoDelegate = delegate(DataMessage msg)
         {
@@ -169,6 +170,99 @@ class UserInfoController
             return true;
         };
         connection.registerDataListener(Ids.Services.GAME_RESLOVER, Ids.Actions.GameResolver.GET_FULL_USER_INFO, getUserInfoDelegate);
+        connection.addMessageToSend(message);
+    }
+
+    private enum RequestGameStates {
+        NotRequestd,
+        Requested,
+        ReqeustComplete,
+        GameStarted
+    }
+
+    private RequestGameStates reqeustState = RequestGameStates.NotRequestd;
+    private RequestGameDelegate onGameRequestCompleteDelegate = null;
+    private RequestGameDelegate onGameStartedDelegate = null;
+
+    public void requestGame(RequestGameDelegate onComplete, RequestGameDelegate onGameStartedDelegate, long gameId)
+    {
+        this.onGameRequestCompleteDelegate = onComplete;
+        this.onGameStartedDelegate = onGameStartedDelegate;
+
+        reqeustState = RequestGameStates.NotRequestd;
+        if (!connection.isConnected())
+        {
+            networkErrorHandler();
+            return;
+        }
+
+        DataMessage message = new DataMessage();
+        message.Service = Ids.Services.GAME_RESLOVER;
+        message.Action = Ids.Actions.GameResolver.START_GAME_REQUEST;
+        message.Session = userManager.getSession();
+
+        MemoryStream stream = new MemoryStream(8);
+        EndianBinaryWriter writer = new EndianBinaryWriter(BigEndianBitConverter.Big, stream);
+        writer.Write(gameId);
+        writer.Flush();
+        message.Data = stream.GetBuffer();
+        message.DataOffset = 0;
+        message.DataLength = (int)stream.Position;
+        writer.Close();
+        stream.Close();
+        
+        reqeustState = RequestGameStates.Requested;
+        connection.registerDataListener(Ids.Services.GAME_RESLOVER, Ids.Actions.GameResolver.GET_FULL_USER_INFO, onGameRequestComplete);
+        connection.registerDataListener(Ids.Services.GAME_RESLOVER, Ids.Actions.GameResolver.GAME_STARTED, onGameStarted);
+        connection.addMessageToSend(message);
+    }
+
+    private bool onGameRequestComplete(DataMessage msg)
+    {
+        if (msg.Data != null)
+        {
+            MemoryStream answareStream = new MemoryStream(msg.Data);
+            EndianBinaryReader answareReader = new EndianBinaryReader(BigEndianBitConverter.Big, answareStream);
+            int result = answareReader.ReadInt32();
+            answareReader.Close();
+            answareStream.Close();
+            if (result != Ids.GameResloverResults.SUCCESS)
+            {
+                //cancel start game handler
+                if (reqeustState == RequestGameStates.Requested)
+                {
+                    connection.unregisterDataListener(Ids.Services.GAME_RESLOVER, Ids.Actions.GameResolver.GAME_STARTED, onGameStarted);
+                }
+            }
+            if (reqeustState == RequestGameStates.Requested)
+            {
+                onGameRequestCompleteDelegate(result);
+            }
+            reqeustState = RequestGameStates.ReqeustComplete;
+        }
+        return true;
+
+    }
+
+    private bool onGameStarted(DataMessage message)
+    {
+        if (reqeustState == RequestGameStates.Requested)
+        {
+            onGameRequestCompleteDelegate(Ids.GameResloverResults.SUCCESS);
+            connection.unregisterDataListener(Ids.Services.GAME_RESLOVER, Ids.Actions.GameResolver.GET_FULL_USER_INFO, onGameRequestComplete);
+        }
+        reqeustState = RequestGameStates.GameStarted;
+        if (message.Data != null)
+        {
+            MemoryStream answareStream = new MemoryStream(message.Data);
+            EndianBinaryReader answareReader = new EndianBinaryReader(BigEndianBitConverter.Big, answareStream);
+            int result = answareReader.ReadInt32();
+            answareReader.Close();
+            answareStream.Close();
+
+            onGameStartedDelegate(result);
+        }
+        return true;
     }
 }
 

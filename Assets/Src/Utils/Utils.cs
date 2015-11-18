@@ -2,6 +2,62 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Events;
+
+public class MessageBox
+{
+    private RectTransform root;
+    private Text titleText;
+    private Text messageText;
+    private Button okButton;
+    private Text okButtonText;
+
+    public MessageBox(Transform root)
+    {
+        this.root = (RectTransform)root;
+        Transform panel = root.Find("Panel");
+        okButton = panel.Find("ButtonOk").GetComponent<Button>();
+        okButtonText = okButton.transform.Find("Text").GetComponent<Text>();
+        titleText = panel.Find("TextLabel").GetComponent<Text>();
+        messageText = panel.Find("TextMessage").GetComponent<Text>();
+        root.gameObject.SetActive(false);
+    }
+
+    private void defaultHandler()
+    {
+        root.gameObject.SetActive(false);
+    }
+
+    public void showMessage(string title, string message, string buttonText, UnityAction onClick)
+    {
+        titleText.text = title;
+        messageText.text = message;
+        okButton.onClick.RemoveAllListeners();
+        okButton.onClick.AddListener(defaultHandler);
+        if (onClick != null)
+        {
+            okButton.onClick.AddListener(onClick);
+        }
+        okButtonText.text = buttonText;
+        root.gameObject.SetActive(true);
+    }
+
+    public void showMessage(string title, string message, UnityAction onClick)
+    {
+        showMessage(title, message, "Ok", onClick);
+    }
+
+    public void showMessage(string title, string message)
+    {
+        showMessage(title, message, "Ok", null);        
+    }
+
+    public void showMessage(string message)
+    {
+        showMessage("", message, "Ok", null);        
+    }
+}
 
 public class WWWLoader
 {

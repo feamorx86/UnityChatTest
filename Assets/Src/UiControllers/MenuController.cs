@@ -28,18 +28,23 @@ public class MenuController : MonoBehaviour {
     public UserManager userManager;
     public UserScreenController userScreenController;
 
-	void Awake () {
+    private MessageBox messageBox;
 
+	void Awake () {
+        gameObject.SetActive(true);
         panelWaiting = transform.Find("PanelWait");
         panelWaiting.gameObject.SetActive(false);
+
+        messageBox = new MessageBox((RectTransform)transform.Find("MessageBox"));
+
         authorizationController = new AuthorizationController(connection, delegate()
         {
-            messageBox("Network error", "Sorry but there was some Network error. Check check your Internet connection and try again", delegate()
+            messageBox.showMessage("Network error", "Sorry but there was some Network error. Check check your Internet connection and try again", delegate()
             {
                 panelWaiting.gameObject.SetActive(false);
             });
         });
-        setupMessageBox();
+
         setupTabs();
         setupRgistration();
         setupLogin();
@@ -59,46 +64,17 @@ public class MenuController : MonoBehaviour {
         });
 
     }
-
-    public void messageBox(string label, string message, UnityAction afterClose)
-    {
-        UnityAction action = null;
-        action = delegate()
-        {
-            if (afterClose != null)
-            {
-                afterClose();
-            }
-            messageBoxButton.onClick.RemoveAllListeners();
-            panelMessageBox.gameObject.SetActive(false);
-        };
-
-        messageBoxButton.onClick.AddListener(action);
-        messageBoxLabel.text = label;
-        messageBoxMessage.text = message;
-        panelMessageBox.gameObject.SetActive(true);
-    }
-
-    private void setupMessageBox()
-    {
-        panelMessageBox = transform.Find("MessageBox");
-        Transform panel = panelMessageBox.Find("Panel");
-        messageBoxButton = panel.Find("ButtonOk").GetComponent<Button>();
-        messageBoxLabel = panel.Find("TextLabel").GetComponent<Text>();
-        messageBoxMessage = panel.Find("TextMessage").GetComponent<Text>();
-        panelMessageBox.gameObject.SetActive(false);
-    }
     
     private void userLogin(string login, string password)
     {
         if (string.IsNullOrEmpty(login))
         {
-            messageBox("Error", "Login is empty. Please enter login and try again.", null);
+            messageBox.showMessage("Error", "Login is empty. Please enter login and try again.");
             return;
         }
         if (string.IsNullOrEmpty(password))
         {
-            messageBox("Error", "Password is empty. Please enter password and try again.", null);
+            messageBox.showMessage("Error", "Password is empty. Please enter password and try again.");
             return;
         }
         panelWaiting.gameObject.SetActive(true);
@@ -113,15 +89,15 @@ public class MenuController : MonoBehaviour {
 
                 if (result == Ids.UserManagerResults.LOGIN_OR_PASSWORD_INVALID)
                 {
-                    messageBox("Login error", "Invalid Login or Password. Check authorization information and try again.", hideWaiting);
+                    messageBox.showMessage("Login error", "Invalid Login or Password. Check authorization information and try again.", hideWaiting);
                 }
                 else if (result == Ids.UserManagerResults.INVALID_DATA)
                 {
-                    messageBox("Login error", "Invalid Login or Password. Check authorization information and try again.", hideWaiting);
+                    messageBox.showMessage("Login error", "Invalid Login or Password. Check authorization information and try again.", hideWaiting);
                 }
                 else
                 {
-                    messageBox("Error", "Sorry but there was some internal error, try again latter.", hideWaiting);
+                    messageBox.showMessage("Error", "Sorry but there was some internal error, try again latter.", hideWaiting);
                 }
             }
             else
@@ -138,17 +114,17 @@ public class MenuController : MonoBehaviour {
     {
         if (string.IsNullOrEmpty(login))
         {
-            messageBox("Error", "Login is empty. Please enter login and try again.", null);
+            messageBox.showMessage("Error", "Login is empty. Please enter login and try again.");
             return;
         }
         if (string.IsNullOrEmpty(password))
         {
-            messageBox("Error", "Password is empty. Please enter password and try again.", null);
+            messageBox.showMessage("Error", "Password is empty. Please enter password and try again.");
             return;
         }
         if (string.IsNullOrEmpty(email))
         {
-            messageBox("Error", "Email is empty. Please enter email and try again.", null);
+            messageBox.showMessage("Error", "Email is empty. Please enter email and try again.");
             return;
         }
         panelWaiting.gameObject.SetActive(true);
@@ -160,15 +136,15 @@ public class MenuController : MonoBehaviour {
             };
             if (invalidData)
             {
-                messageBox("Error", "Invalid registration information. Check your login, password, email and try again.", hideWaiting);
+                messageBox.showMessage("Error", "Invalid registration information. Check your login, password, email and try again.", hideWaiting);
             }
             else if (userExist)
             {
-                messageBox("Error", "Sorry but User with such Login already exist. Please enter another Login and try again.", hideWaiting);
+                messageBox.showMessage("Error", "Sorry but User with such Login already exist. Please enter another Login and try again.", hideWaiting);
             }
             else if (success)
             {
-                messageBox("Success", "You was successfully Registered! Use this Login and Password to Enter.", delegate()
+                messageBox.showMessage("Success", "You was successfully Registered! Use this Login and Password to Enter.", delegate()
                 {
                     panelWaiting.gameObject.SetActive(false);
                     inputEnterLogin.text = login;
@@ -178,7 +154,7 @@ public class MenuController : MonoBehaviour {
             }
             else
             {
-                messageBox("Error", "Sorry but there was some internal error, try again latter.", hideWaiting);
+                messageBox.showMessage("Error", "Sorry but there was some internal error, try again latter.", hideWaiting);
             }
         });
     }

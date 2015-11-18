@@ -11,11 +11,15 @@ public class UserScreenController : MonoBehaviour {
     private RectTransform contentPanel;
     private Scrollbar scroller;
 
+    private RectTransform avalableGamesPanel;
+
     public Connection connection;
     public UserManager userManager;
     
     private UserInfoController dataController;
     private WWWLoader wwwLoader = new WWWLoader();
+
+    private MessageBox messageBox;
 	
     public void StartScreen()
     {
@@ -28,10 +32,13 @@ public class UserScreenController : MonoBehaviour {
     private void displayNetworkError()
     {
         Debug.LogError("Network error");
+        messageBox.showMessage("Error", "Network connection problem");
     }
 
     private void displayWaiting(bool show)
     {
+        contentPanel.gameObject.SetActive(!show);
+        scroller.gameObject.SetActive(!show);
         panelWaiting.gameObject.SetActive(show);
     }
 
@@ -55,8 +62,11 @@ public class UserScreenController : MonoBehaviour {
 
         wwwLoader.addLoader("load-user-icon", userIcon, delegate(WWW www, string tag)
         {
-            Sprite iconSprite = Sprite.Create(www.texture, userIconImage.sprite.rect, Vector2.zero);
-            userIconImage.sprite = iconSprite;
+            if (www != null && www.texture != null)
+            {
+                Sprite iconSprite = Sprite.Create(www.texture, new Rect(0, 0, www.texture.width, www.texture.height), new Vector2(0.5f, 0.5f));
+                userIconImage.overrideSprite = iconSprite;
+            }
         });
     }
 
@@ -64,8 +74,53 @@ public class UserScreenController : MonoBehaviour {
     {
         if (inventory != null)
         {
-
+            float startOffset = 80f;
+            float width = 150f;
+            float distance = 5f;
+            for (int i = 0; i < inventory.Count; i++)
+            {
+                float x = startOffset + i * (width + distance);
+                Vector2 position = new Vector2(x, 0);
+                addAvalableGame(avalableGamesPanel, inventory[i], position);
+            }
         }
+    }
+
+
+    private void addAvalableGame(Transform parent, UserInventoryItem item, Vector2 position)
+    {
+        RectTransform ui;
+        Button uiButton;
+        Text uiLabel;
+
+        GameObject uiGameObject = (GameObject)GameObject.Instantiate(Resources.Load<GameObject>("UI/UserScreen/AvalableGame"));
+        ui = (RectTransform)uiGameObject.transform;
+        ui.parent = parent;
+        ui.anchoredPosition = position;
+        uiButton = ui.Find("Button").GetComponent<Button>();
+        uiLabel = ui.Find("Text").GetComponent<Text>();
+
+        wwwLoader.addLoader("AvalableGame" + item.itemId.ToString(), item.imageUri, delegate(WWW www, string tag)
+        {
+            if (www.texture != null)
+            {
+                Sprite iconSprite = Sprite.Create(www.texture, new Rect(0, 0, www.texture.width, www.texture.height), new Vector2(0.5f, 0.5f));
+                uiButton.image.overrideSprite = iconSprite;
+            }
+        });
+
+        uiLabel.text = item.name;
+        uiButton.onClick.RemoveAllListeners();
+        long gameId = item.itemId;
+        uiButton.onClick.AddListener(delegate()
+        {
+            startGame(gameId);
+        });
+    }
+
+    private void startGame(long gameId)
+    {
+
     }
 
     private Dictionary<string, System.Object> userInfo = null;
@@ -99,13 +154,12 @@ public class UserScreenController : MonoBehaviour {
     }
 
 	void Awake () {
-        
+        gameObject.SetActive(false);
         panelWaiting = transform.Find("PanelWait");
-        panelWaiting.gameObject.SetActive(false);
-
         contentPanel = (RectTransform)transform.Find("ContentPanel");
-
         scroller = transform.Find("Scrollbar").GetComponent<Scrollbar>();
+        messageBox = new MessageBox(transform.Find("MessageBox"));
+
         scroller.onValueChanged.AddListener(delegate(float value)
         {
             float screenHeight = Screen.height;
@@ -117,18 +171,26 @@ public class UserScreenController : MonoBehaviour {
             contentPanel.position = new UnityEngine.Vector3(xPos, yPos, 0);
         });
 
+        displayWaiting(true);
+
         RectTransform userInfoPanel = (RectTransform)contentPanel.Find("UserInfoPanel");
         firstNameText = userInfoPanel.Find("UserNameText").GetComponent<Text>();
         secondNameText = userInfoPanel.Find("UserLavelText").GetComponent<Text>();
         userIconImage = userInfoPanel.Find("UserIcon").GetComponent<Image>();
+
+        avalableGamesPanel = (RectTransform)contentPanel.Find("AvalableGamesPanel");
 	}
 
 	// Update is called once per frame
-	void Update () {
-        float speed = Input.GetAxis("Mouse ScrollWheel");
-        if ( Mathf.Abs(speed) > Mathf.Epsilon)
+    void Update()
+    {
+        if (scroller.gameObject.activeSelf)
         {
-            scroller.value += speed / 2;
+            float speed = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Abs(speed) > Mathf.Epsilon)
+            {
+                scroller.value += speed / 2;
+            }
         }
         wwwLoader.update();
 	}

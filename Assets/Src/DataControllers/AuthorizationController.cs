@@ -45,7 +45,7 @@ class AuthorizationController
         message.DataLength = (int)stream.Position;
         writer.Close();
         stream.Close();
-        connection.addMessageToSend(message);
+        
         Connection.DataHandledDelegate sendAuthDelefate = null;
         sendAuthDelefate = delegate (DataMessage msg)
         {
@@ -80,6 +80,7 @@ class AuthorizationController
             return true;
         };
         connection.registerDataListener(Ids.Services.CLIENTS, Ids.Actions.Clients.REGISTER_NEW, sendAuthDelefate);
+        connection.addMessageToSend(message);
     }
 
     public void loginUser(string login, string password, LoginResultDelegate onComplete)
@@ -107,7 +108,7 @@ class AuthorizationController
         message.DataLength = (int)stream.Position;
         writer.Close();
         stream.Close();
-        connection.addMessageToSend(message);
+
         Connection.DataHandledDelegate loginDelegate = null;
         loginDelegate = delegate(DataMessage msg)
         {
@@ -150,5 +151,6 @@ class AuthorizationController
             return true;
         };
         connection.registerDataListener(Ids.Services.CLIENTS, Ids.Actions.Clients.LOGIN, loginDelegate);
+        connection.addMessageToSend(message);
     }
 }
