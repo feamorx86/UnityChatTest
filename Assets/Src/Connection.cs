@@ -6,120 +6,137 @@ using System.Text;
 using System.IO;
 using MiscUtil.IO;
 using MiscUtil.Conversion;
+using JsonFx.Json;
+using UnityEngine.Events;
 
-
-public class DataMessage
-{
-    int service;
-    int action;
-    string session;
-    byte[] data;
-    int dataLength;
-    int dataOffset;
-
-    public int DataLength
-    {
-        get { return dataLength; }
-        set { dataLength = value; }
-    }
-
-    public int DataOffset
-    {
-        get { return dataOffset; }
-        set { dataOffset = value; }
-    }
-    
-
-    public int Action
-    {
-        get { return action; }
-        set { action = value; }
-    }
-    
-
-    public string Session
-    {
-        get { return session; }
-        set { session = value; }
-    }
-    
-
-    public byte[] Data
-    {
-        get { return data; }
-        set { data = value; }
-    }
-
-    public int Service
-    {
-        get { return service; }
-        set { service = value; }
-    }
-
-
-
-
-}
+public delegate bool DataHandledDelegate(DataMessage message);
+public delegate void ConnectionErrorDelegate(int senderId, int code, string message, object param);
 
 public class Connection : MonoBehaviour {
 
-    public delegate bool DataHandledDelegate(DataMessage message);
+    public enum ConnectionErrors
+    {
+        UNKNOWN = 0,
+        CONNECT = 1,
+        SEND_MESSAGE = 2,
+        RECEIVE_MESSAGE = 3
+    }
+
+
+    public const string DEFAULT_ADDRESS = "127.0.0.1";
+    public const int DEFAULT_PORT = 19790;
+
+    public const float receiveMessageMaxTime = 300;
+    public const int minHeaderSize = 4 //length
+        + 4 //service
+        + 4 //action
+        + 4 //session lenght, session == null
+        + 4; //data lenght, data == null
+
+
+    private static Connection instance = null;
 
     private TcpClient connection;
+    private Stack<DataMessage> messagesToSend = new Stack<DataMessage>();
+    private Dictionary<int, Dictionary<int, DataHandledDelegate>> dataListeners = new Dictionary<int, Dictionary<int, DataHandledDelegate>>();
+    private Dictionary<int, ConnectionErrorDelegate> errorHandlers = new Dictionary<int, ConnectionErrorDelegate>();
+
+    private EndianBinaryWriter writer;
+    private EndianBinaryReader reader;
+    
+    private string serverAddress = DEFAULT_ADDRESS;
+    private int serverPort = DEFAULT_PORT;
+        
+    private DataMessage currentMessage;
+    private int currentLenght;
+
+
+    public static Connection getInstance()
+    {
+        return instance;
+    }
+
+    public void Awake()
+    {
+        instance = this;
+    }
+
+    public bool connect()
+    {
+        bool result = false;
+        lock (this)
+        {
+            clear();
+            try
+            {
+                connection = new TcpClient();
+                connection.Connect(serverAddress, serverPort);
+                writer = new EndianBinaryWriter(EndianBitConverter.Big, connection.GetStream());
+                reader = new EndianBinaryReader(EndianBitConverter.Big, connection.GetStream());
+                result = true;
+            }
+            catch (Exception ex)
+            {
+                result = false;
+                Debug.LogError("Fail to connect to remote server (" + serverAddress.ToString() + ":" + serverPort.ToString() + ") error :" + ex);
+                fireErrorHandlers(ConnectionErrors.CONNECT, "Connect to server error.", ex);
+            }
+        }
+        return result;
+    }
 
     public bool isConnected()
     {
         return connection.Connected;
     }
 
-    private List<DataMessage> messagesToSend = new List<DataMessage>();
-    private Dictionary<int, Dictionary<int, List<DataHandledDelegate>>> dataListeners = new Dictionary<int, Dictionary<int, List<DataHandledDelegate>>>();
-
-    public void registerDataListener(int service, int action, DataHandledDelegate handler)
+    public void Update()
     {
-        Dictionary<int, List<DataHandledDelegate>> serviceHandlers;
-        if (dataListeners.TryGetValue(service, out serviceHandlers)) 
+        if (connection != null && connection.Connected)
         {
-            List<DataHandledDelegate> actionHandlers;
-            if (serviceHandlers.TryGetValue(action, out actionHandlers))
-            {
-                actionHandlers.Add(handler);
-            }
-            else
-            {
-                actionHandlers = new List<DataHandledDelegate>();
-                actionHandlers.Add(handler);
-                serviceHandlers.Add(action, actionHandlers);
-            }
-        } 
-        else 
-        {
-            serviceHandlers = new Dictionary<int, List<DataHandledDelegate>>();
-            List<DataHandledDelegate> actionHandlers = new List<DataHandledDelegate>();
-            actionHandlers.Add(handler);
-            serviceHandlers.Add(action, actionHandlers);
-            dataListeners.Add(service, serviceHandlers);
+            sendMessages();
+            receiveMessages();
         }
     }
 
-    public bool unregisterDataListener(int service, int action, DataHandledDelegate handler)
+    public void setServerAddress(string address, int port)
+    {
+        this.serverAddress = address;
+        this.serverPort = port;
+    }
+
+    public void registerDataListener(DataMessage forMessage, DataHandledDelegate handler)
+    {
+        registerDataListener(forMessage.Service, forMessage.Action, handler);
+    }
+
+    public void registerDataListener(int service, int action, DataHandledDelegate handler)
+    {
+        lock (dataListeners)
+        {
+            Dictionary<int, DataHandledDelegate> serviceHandlers;
+            if (dataListeners.TryGetValue(service, out serviceHandlers))
+            {
+                serviceHandlers[action] = handler;
+            }
+            else
+            {
+                serviceHandlers = new Dictionary<int, DataHandledDelegate>();
+                serviceHandlers[action] = handler;
+                dataListeners[service] = serviceHandlers;
+            }
+        }
+    }
+
+    public bool unregisterDataListener(int service, int action)
     {
         bool removed = false;
-        Dictionary<int, List<DataHandledDelegate>> serviceHandlers;
-        if (dataListeners.TryGetValue(service, out serviceHandlers))
+        lock (dataListeners)
         {
-            List<DataHandledDelegate> actionHandlers;
-            if (serviceHandlers.TryGetValue(action, out actionHandlers))
+            Dictionary<int, DataHandledDelegate> serviceHandlers;
+            if (dataListeners.TryGetValue(service, out serviceHandlers))
             {
-                removed = actionHandlers.Remove(handler);
-                if (actionHandlers.Count == 0)
-                {
-                    serviceHandlers.Remove(action);
-                    if (serviceHandlers.Count == 0)
-                    {
-                        dataListeners.Remove(service);
-                    }
-                }
+                removed = serviceHandlers.Remove(action);
             }
         }
         return removed;
@@ -127,7 +144,30 @@ public class Connection : MonoBehaviour {
 
     public void addMessageToSend(DataMessage message)
     {
-        messagesToSend.Add(message);
+        if (connection != null && connection.Connected)
+        {
+            lock (messagesToSend)
+            {
+                messagesToSend.Push(message);
+            }
+        }
+    }
+
+    private void handleMessage(object param)
+    {
+        KeyValuePair<DataMessage, DataHandledDelegate> action = (KeyValuePair<DataMessage, DataHandledDelegate>)param;
+        try
+        {
+            if (action.Value(action.Key))
+            {
+                unregisterDataListener(action.Key.Service, action.Key.Action);
+            }
+        }
+        catch (Exception ex)
+        {
+            unregisterDataListener(action.Key.Service, action.Key.Action);
+            Debug.LogError("Connection, handler message error : " + ex.ToString());
+        }
     }
 
     private void notifyAction(DataMessage message)
@@ -135,37 +175,16 @@ public class Connection : MonoBehaviour {
         if (message != null)
         {
             bool handled = false;
-            Dictionary<int, List<DataHandledDelegate>> serviceHandlers;
-            if (dataListeners.TryGetValue(message.Service, out serviceHandlers))
+            lock (dataListeners)
             {
-                List<DataHandledDelegate> actionHandlers;
-                if (serviceHandlers.TryGetValue(message.Action, out actionHandlers))
+                Dictionary<int, DataHandledDelegate> serviceHandlers;
+                if (dataListeners.TryGetValue(message.Service, out serviceHandlers))
                 {
-                    List<DataHandledDelegate> completedHandlers = null;
-                    foreach (DataHandledDelegate handler in actionHandlers)
+                    DataHandledDelegate actionHandler;
+                    if (serviceHandlers.TryGetValue(message.Action, out actionHandler))
                     {
-                        if (handler(message))
-                        {
-                            if (completedHandlers == null) completedHandlers = new List<DataHandledDelegate>();
-                            completedHandlers.Add(handler);
-                        }
-                    }
-                    if (actionHandlers.Count > 0)
+                        Handler.getInstance().postAction(handleMessage, new KeyValuePair<DataMessage, DataHandledDelegate>(message, actionHandler));
                         handled = true;
-                    if (completedHandlers != null)
-                    {
-                        foreach (DataHandledDelegate handler in completedHandlers) 
-                        {
-                            actionHandlers.Remove(handler);
-                        }
-                        if (actionHandlers.Count <= 0)
-                        {
-                            serviceHandlers.Remove(message.Action);
-                            if (serviceHandlers.Count <= 0)
-                            {
-                                dataListeners.Remove(message.Service);
-                            }
-                        }
                     }
                 }
             }
@@ -173,41 +192,8 @@ public class Connection : MonoBehaviour {
             {
                 Debug.LogWarning("Connection: unsupported message. Service : " + message.Service.ToString() + ", Action : " + message.Action.ToString());
             }
-        }
-                
+        }       
     }
-
-    public const string ADDRESS = "127.0.0.1";
-    public const int PORT = 19790;
-
-    private EndianBinaryWriter writer;
-    private EndianBinaryReader reader;
-
-    public void Awake()
-    {
-        try
-        {
-            connection = new TcpClient();
-            connection.Connect(ADDRESS, PORT);
-            writer = new EndianBinaryWriter(EndianBitConverter.Big, connection.GetStream());
-            reader = new EndianBinaryReader(EndianBitConverter.Big, connection.GetStream());
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError("fail to connect to remote server :"+ex);
-        }
-    }
-
-    public void Update()
-    {
-        if (connection.Connected) 
-        {
-            sendMessages();
-            receiveMessages();
-        }
-	}
-
-    private float receiveMessageMaxTime = 300;
 
     private void receiveMessages()
     {
@@ -222,15 +208,6 @@ public class Connection : MonoBehaviour {
                 break;
         }
     }
-
-    public const int minHeaderSize = 4 //length
-        + 4 //service
-        + 4 //action
-        + 4 //session lenght, session == null
-        + 4; //data lenght, data == null
-
-    private DataMessage currentMessage;
-    private int currentLenght;
 
     private DataMessage readMessage()
     {
@@ -274,7 +251,8 @@ public class Connection : MonoBehaviour {
         }
         catch (Exception ex)
         {
-            Debug.LogError("Fail to read message, ex : " + ex);
+            Debug.LogError("Fail to receive message , error : " + ex);
+            fireErrorHandlers(ConnectionErrors.RECEIVE_MESSAGE, "Receive message error", ex);
             result = null;
         }
         return result;
@@ -282,73 +260,166 @@ public class Connection : MonoBehaviour {
 
     private void sendMessages()
     {
-        if (connection.Connected)
+        if (!connection.Connected) return;
+
+        DataMessage message = null;
+        try
         {
-            if (messagesToSend.Count > 0)
+            while (true)
             {
-                try
+                //Pop first message
+                lock (messagesToSend)
                 {
-                    foreach (DataMessage mesasge in messagesToSend)
+                    if (messagesToSend.Count > 0)
                     {
-                        int length = 4 + 4;
-                        byte[] session = null; ;
-                        length += 4;
-                        if (!string.IsNullOrEmpty(mesasge.Session))
-                        {
-                            session = Encoding.UTF8.GetBytes(mesasge.Session);
-                            length += session.Length;
-                        }
-
-                        length += 4;
-                        int dataLength = mesasge.DataLength - mesasge.DataOffset;
-                        if (mesasge.Data != null && dataLength > 0)
-                        {
-                            length += dataLength;
-                        }
-                        
-                        writer.Write(length);
-                        writer.Write(mesasge.Service);
-                        writer.Write(mesasge.Action);
-                        if (session != null)
-                        {
-                            writer.Write(session.Length);
-                            writer.Write(session, 0, session.Length);
-                        }
-                        else
-                        {
-                            writer.Write((int)0);
-                        }
-
-                        if (mesasge.Data != null)
-                        {
-                            writer.Write(mesasge.DataLength);
-                            writer.Write(mesasge.Data, mesasge.DataOffset, mesasge.DataLength);
-                        }
-                        else
-                        {
-                            writer.Write((int)0);
-                        }
+                        message = messagesToSend.Pop();
                     }
-                    connection.GetStream().Flush();
-                    messagesToSend.Clear();
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError("Fail to send messages error : " + ex);
+                    else
+                    {
+                        break;
+                    }
                 }
 
+                int length = 4 + 4;
+                byte[] session = null; ;
+                length += 4;
+                if (!string.IsNullOrEmpty(message.Session))
+                {
+                    session = Encoding.UTF8.GetBytes(message.Session);
+                    length += session.Length;
+                }
+
+                length += 4;
+                int dataLength = message.DataLength - message.DataOffset;
+                if (message.Data != null && dataLength > 0)
+                {
+                    length += dataLength;
+                }
+
+                writer.Write(length);
+                writer.Write(message.Service);
+                writer.Write(message.Action);
+                if (session != null)
+                {
+                    writer.Write(session.Length);
+                    writer.Write(session, 0, session.Length);
+                }
+                else
+                {
+                    writer.Write((int)0);
+                }
+
+                if (message.Data != null)
+                {
+                    writer.Write(message.DataLength);
+                    writer.Write(message.Data, message.DataOffset, message.DataLength);
+                }
+                else
+                {
+                    writer.Write((int)0);
+                }
+                connection.GetStream().Flush();
             }
         }
-}
-
-    public void onDestroy()
-    {
-        if (connection.Connected)
+        catch (Exception ex)
         {
-            writer.Close();
-            reader.Close();
-            connection.Close();
+            if (message != null) 
+                Debug.LogError("Fail to send message (is null), error : " + ex);
+            else 
+                Debug.LogError("Fail to send message ("+message.ToString()+"), error : " + ex);
+            fireErrorHandlers(ConnectionErrors.SEND_MESSAGE, "Send message error", ex);
         }
     }
 
+    public void registerErrorListener(int senderId, ConnectionErrorDelegate errorHandler)
+    {
+        errorHandlers[senderId] = errorHandler;
+    }
+
+    public bool unregisterErrorListener(int senderId)
+    {
+        return errorHandlers.Remove(senderId);
+    }
+
+    private void fireErrorHandlers(ConnectionErrors error, string message, object param)
+    {
+        if (errorHandlers.Count > 0)
+        {
+            foreach (KeyValuePair<int, ConnectionErrorDelegate> i in errorHandlers)
+            {
+                ErrorHandler handler = new ErrorHandler(i.Key, error, message, param, i.Value);
+                Handler.getInstance().postAction(handleError, handler);
+            }
+        }
+    }
+
+
+    private void handleError(object param)
+    {
+        ErrorHandler handler = (ErrorHandler)param;
+        try
+        {
+            handler.handle();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Connection, handler Error problem : " + ex.ToString());
+        }
+    }
+        
+    private void clear()
+    {
+        lock (messagesToSend)
+        {
+            messagesToSend.Clear();
+        }
+
+        lock (dataListeners)
+        {
+            dataListeners.Clear();
+        }
+
+        if (connection != null)
+        {
+            if (connection.Connected)
+            {
+                writer.Close();
+                reader.Close();
+            }
+            connection.Close();
+            connection = null;
+        }
+    }
+
+    public void onDestroy()
+    {
+        clear();
+        lock (errorHandlers)
+        {
+            errorHandlers.Clear();
+        }
+    }
+
+    private class ErrorHandler
+    {
+        private int id;
+        private ConnectionErrors error;
+        private string message;
+        private object param;
+        private ConnectionErrorDelegate handler;
+
+        public ErrorHandler(int id, ConnectionErrors code, string message, object param, ConnectionErrorDelegate handler)
+        {
+            this.id = id;
+            this.error = code;
+            this.message = message;
+            this.param = param;
+            this.handler = handler;
+        }
+
+        public void handle()
+        {
+            handler(id, (int)error, message, param);
+        }         
+    }
 }
