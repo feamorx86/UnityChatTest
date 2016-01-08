@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections.Generic;
-using System.Net.Sockets;
 using System.Text;
 using System.IO;
 using MiscUtil.IO;
@@ -36,7 +35,8 @@ public class Connection : MonoBehaviour {
 
     private static Connection instance = null;
 
-    private TcpClient connection;
+    //private TcpClient connection;
+    private MySocket connection;
     private Stack<DataMessage> messagesToSend = new Stack<DataMessage>();
     private Dictionary<int, Dictionary<int, DataHandledDelegate>> dataListeners = new Dictionary<int, Dictionary<int, DataHandledDelegate>>();
     private Dictionary<int, ConnectionErrorDelegate> errorHandlers = new Dictionary<int, ConnectionErrorDelegate>();
@@ -69,7 +69,7 @@ public class Connection : MonoBehaviour {
             clear();
             try
             {
-                connection = new TcpClient();
+                connection = new MySocket();
                 connection.Connect(serverAddress, serverPort);
                 writer = new EndianBinaryWriter(EndianBitConverter.Big, connection.GetStream());
                 reader = new EndianBinaryReader(EndianBitConverter.Big, connection.GetStream());

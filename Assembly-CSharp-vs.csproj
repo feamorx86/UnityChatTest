@@ -61,6 +61,7 @@
      <Compile Include="Assets\Src\Utils\DataMessage.cs" />
      <Compile Include="Assets\Src\Utils\GameLibrary.cs" />
      <Compile Include="Assets\Src\Utils\Handler.cs" />
+     <Compile Include="Assets\Src\Utils\MySockets.cs" />
      <Compile Include="Assets\Src\Utils\Utils.cs" />
      <None Include="Assets\Standard Assets (Mobile)\Shaders\Particle Shaders\Mobile Multiply Culled.shader" />
      <None Include="Assets\Standard Assets (Mobile)\Shaders\Miscellaneous Shaders\Mobile Background.shader" />
