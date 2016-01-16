@@ -145,7 +145,8 @@ public class ChatGameController : BaseGameController
         message.closeReader();
 
         users.Remove(userId);
-        postUpdate(UiUpdates.UpdateUsersList, userId);
+        dialogs.Remove(userId);
+        postUpdate(UiUpdates.UserRemoved, userId);
         return false;
     }
 

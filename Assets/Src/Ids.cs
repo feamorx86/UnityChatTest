@@ -10,6 +10,9 @@ public static class Ids
     }
 
     public static class Actions {
+
+        public const int HEART_BEAT_ACTION = -1;
+
         public static class Clients {
             public const int REGISTER_NEW = 100;
             public const int LOGIN = 200;

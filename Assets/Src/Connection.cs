@@ -195,13 +195,26 @@ public class Connection : MonoBehaviour {
         }       
     }
 
+    private void sendHeartBeat(object param) 
+    {
+        DataMessage message = new DataMessage(Ids.Services.CLIENTS, Ids.Actions.HEART_BEAT_ACTION, null);
+        addMessageToSend(message);
+    }
+
     private void receiveMessages()
     {
         float time = Time.timeSinceLevelLoad;
         DataMessage message = readMessage();
         while (message != null)
         {
-            notifyAction(message);
+            if (message.Action == Ids.Actions.HEART_BEAT_ACTION)
+            {
+                Handler.getInstance().postAction(sendHeartBeat, message);
+            }
+            else
+            {
+                notifyAction(message);
+            }
             message = readMessage();
             float last = Time.timeSinceLevelLoad;
             if (last - time > receiveMessageMaxTime)
@@ -243,9 +256,9 @@ public class Connection : MonoBehaviour {
                     if (dataLenght > 0)
                     {
                         currentMessage.Data = reader.ReadBytes(dataLenght);
-                        result = currentMessage;
-                        currentMessage = null;
                     }
+                    result = currentMessage;
+                    currentMessage = null;
                 }
             }
         }

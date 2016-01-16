@@ -28,6 +28,15 @@ public class ChatGameScreen : BaseUiController
 
     private ChatGameController.ChatUser selectedUser = null;
 
+    private void clearMessages() {
+        for (int i = 0; i < messagesList.childCount; i++)
+        {
+            GameObject go = messagesList.GetChild(i).gameObject;
+            go.SetActive(false);
+            GameObject.DestroyObject(go);
+        }
+    }
+
     public void selectUser(RectTransform menuItem, int userId)
     {
         //unselect user
@@ -36,14 +45,7 @@ public class ChatGameScreen : BaseUiController
             GameObject go = usersList.GetChild(i).gameObject;
             go.GetComponent<Image>().color = unselectedUserColor;
         }
-        //remove messages
-        for (int i = 0; i < messagesList.childCount; i++)
-        {
-            GameObject go = messagesList.GetChild(i).gameObject;
-            go.SetActive(false);
-            GameObject.DestroyObject(go);            
-        }
-
+        clearMessages();
         selectedUser = chatController.getUser(userId);
 
         menuItem.GetComponent<Image>().color = selectedUserColor;
@@ -68,8 +70,7 @@ public class ChatGameScreen : BaseUiController
     }
 
 
-
-    public void addUser(string firstName, string secondName, string imageUri, int id)
+    public RectTransform addUser(string firstName, string secondName, string imageUri, int id)
     {
         if (userItemPrefab == null)
         {
@@ -115,10 +116,21 @@ public class ChatGameScreen : BaseUiController
 
         if (usersList.childCount > 1)
         {
-            RectTransform lastUserItem = (RectTransform)usersList.GetChild(usersList.childCount - 2);
+            RectTransform lastUserItem = null;
+            for (int i = usersList.childCount - 2; i >= 0; i--)
+            {
+                if (usersList.GetChild(i).gameObject.activeSelf)
+                {
+                    lastUserItem = (RectTransform)usersList.GetChild(i);
+                    break;
+                }
+            }
 
-            float lastOffset = lastUserItem.anchoredPosition.y + lastUserItem.rect.height / -2f;
-            posY += lastOffset;
+            if (lastUserItem != null)
+            {
+                float lastOffset = lastUserItem.anchoredPosition.y + lastUserItem.rect.height / -2f;
+                posY += lastOffset;
+            }
         }
 
         newUserItem.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
@@ -128,6 +140,7 @@ public class ChatGameScreen : BaseUiController
         float listY = listHeight / -2f;
         usersList.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, listHeight);
         usersList.anchoredPosition = new Vector2(usersList.anchoredPosition.x, listY);
+        return newUserItem;
     }
 
     public void updateUser(string firstName, string secondName, string imageUri, int id)
@@ -176,8 +189,6 @@ public class ChatGameScreen : BaseUiController
             addUser(firstName, secondName, imageUri, id);
         }
     }
-
-
 
     private GameObject messagePrefab = null;
     private RectTransform messagesList;
@@ -326,6 +337,16 @@ public class ChatGameScreen : BaseUiController
                     addUser(user.firstName, user.secondName, user.iconUri, user.userId);
                 }
                 break;
+            case ChatGameController.UiUpdates.UserRemoved:
+                {
+                    if (selectedUser!= null && selectedUser.userId == (int)info.Value)
+                    {
+                        selectedUser = null;
+                        clearMessages();
+                    }
+                    displayeUsers();
+                }
+                break;
             case ChatGameController.UiUpdates.UserUpdated:
                 {
                     ChatGameController.ChatUser user = (ChatGameController.ChatUser)info.Value;
@@ -352,9 +373,27 @@ public class ChatGameScreen : BaseUiController
             go.SetActive(false);
             GameObject.DestroyObject(go);
         }
-        foreach (ChatGameController.ChatUser user in chatController.getAllUsers().Values)
+        if (selectedUser != null) 
         {
-            addUser(user.firstName, user.secondName, user.iconUri, user.userId);
+            RectTransform item = null;
+            foreach (ChatGameController.ChatUser user in chatController.getAllUsers().Values)
+            {
+                if (selectedUser == user) 
+                {
+                    item = addUser(user.firstName, user.secondName, user.iconUri, user.userId);
+                }
+            }
+            if (item != null)
+            {
+                selectUser(item, selectedUser.userId);
+            }
+        }
+        else
+        {
+            foreach (ChatGameController.ChatUser user in chatController.getAllUsers().Values)
+            {
+                addUser(user.firstName, user.secondName, user.iconUri, user.userId);
+            }
         }
     }
 
@@ -386,7 +425,7 @@ public class ChatGameScreen : BaseUiController
 
     public void onSendMessageClick()
     {
-        if (selectedUser != null)
+        if (selectedUser != null && !String.IsNullOrEmpty(sendMessageInputField.text))
         {
             string message = sendMessageInputField.text;
             sendMessageInputField.text = "";
