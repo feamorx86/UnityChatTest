@@ -132,7 +132,7 @@ public class UserInfoScreen : BaseUiController {
 
         GameObject uiGameObject = (GameObject)GameObject.Instantiate(Resources.Load<GameObject>("UI/UserScreen/AvalableGame"));
         ui = (RectTransform)uiGameObject.transform;
-        ui.parent = parent;
+        ui.SetParent(parent, false);
         ui.anchoredPosition = position;
         uiButton = ui.Find("Button").GetComponent<Button>();
         uiLabel = ui.Find("Text").GetComponent<Text>();

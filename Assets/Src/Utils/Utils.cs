@@ -58,14 +58,14 @@ public class ProgressBar
 
 
     public void setProgress(float value)
-    {   
+    {
         if (value < 0f) this.value = 0f;
         else if (value > maxValue) this.value = maxValue;
         else this.value = value;
 
         float progress = value / maxValue;
 
-        progressText.text = ((int)(progress * 100f)).ToString()+"%";
+        progressText.text = ((int)(progress * 100f)).ToString() + "%";
 
         /*float allProgressWidth = root.rect.width -2f * sideProgressMargin;
         float width = allProgressWidth * progress;
@@ -133,12 +133,12 @@ public class MessageBox
 
     public void showMessage(string title, string message)
     {
-        showMessage(title, message, "Ok", null);        
+        showMessage(title, message, "Ok", null);
     }
 
     public void showMessage(string message)
     {
-        showMessage("", message, "Ok", null);        
+        showMessage("", message, "Ok", null);
     }
 }
 
